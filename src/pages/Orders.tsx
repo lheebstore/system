@@ -1,57 +1,56 @@
 import { useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 
+import { db } from "../firebase";
+
+import {
+  collection,
+  getDocs,
+  doc,
+  updateDoc,
+} from "firebase/firestore";
+
 export default function Orders() {
   const navigate = useNavigate();
 
   const [orders, setOrders] = useState<any[]>([]);
 
-  useEffect(() => {
-    const savedOrders = JSON.parse(
-      localStorage.getItem("orders") || "[]"
+  const loadOrders = async () => {
+    const querySnapshot = await getDocs(
+      collection(db, "orders")
     );
 
-    let counter = 1;
-
-    const fixedOrders = savedOrders.map(
-      (order: any) => ({
-        ...order,
-        orderNumber:
-          order.orderNumber || counter++,
+    const data = querySnapshot.docs.map(
+      (doc) => ({
+        firebaseId: doc.id,
+        ...doc.data(),
       })
     );
 
-    localStorage.setItem(
-      "orders",
-      JSON.stringify(fixedOrders)
-    );
+    setOrders(data);
+  };
 
-    setOrders(fixedOrders);
+  useEffect(() => {
+    loadOrders();
   }, []);
 
-  const cancelOrder = (id: number) => {
+  const cancelOrder = async (
+    firebaseId: string
+  ) => {
     const confirmCancel = window.confirm(
       "هل أنت متأكد من إلغاء الطلب؟"
     );
 
     if (!confirmCancel) return;
 
-    const updatedOrders = orders.map(
-      (order) =>
-        order.id === id
-          ? {
-              ...order,
-              status: "ملغي",
-            }
-          : order
+    await updateDoc(
+      doc(db, "orders", firebaseId),
+      {
+        status: "ملغي",
+      }
     );
 
-    localStorage.setItem(
-      "orders",
-      JSON.stringify(updatedOrders)
-    );
-
-    setOrders(updatedOrders);
+    loadOrders();
   };
 
   const today = new Date();
@@ -82,37 +81,14 @@ export default function Orders() {
 
           <thead className="bg-zinc-800">
             <tr>
-              <th className="p-4">
-                ORDER
-              </th>
-
-              <th className="p-4">
-                العميل
-              </th>
-
-              <th className="p-4">
-                المنتج
-              </th>
-
-              <th className="p-4">
-                طريقة الدفع
-              </th>
-
-              <th className="p-4">
-                السعر
-              </th>
-
-              <th className="p-4">
-                المتبقي
-              </th>
-
-              <th className="p-4">
-                الحالة
-              </th>
-
-              <th className="p-4">
-                الإجراءات
-              </th>
+              <th className="p-4">ORDER</th>
+              <th className="p-4">العميل</th>
+              <th className="p-4">المنتج</th>
+              <th className="p-4">طريقة الدفع</th>
+              <th className="p-4">السعر</th>
+              <th className="p-4">المتبقي</th>
+              <th className="p-4">الحالة</th>
+              <th className="p-4">الإجراءات</th>
             </tr>
           </thead>
 
@@ -131,11 +107,11 @@ export default function Orders() {
 
             ) : (
 
-              orders.map((order) => {
+              orders.map((order, index) => {
 
                 let remainingText = "-";
                 let status =
-                  order.status;
+                  order.status || "قيد التنفيذ";
 
                 let statusClass =
                   "text-white";
@@ -146,8 +122,6 @@ export default function Orders() {
                 if (
                   order.status === "ملغي"
                 ) {
-                  status = "ملغي";
-
                   statusClass =
                     "text-red-400";
                 }
@@ -158,9 +132,6 @@ export default function Orders() {
                 ) {
                   remainingText =
                     "∞";
-
-                  status =
-                    "قيد التنفيذ";
 
                   statusClass =
                     "text-yellow-400";
@@ -211,54 +182,30 @@ export default function Orders() {
 
                   else {
 
+                    remainingText =
+                      `${remainingDays} DAYS`;
+
                     status =
                       "قيد التنفيذ";
 
                     statusClass =
                       "text-yellow-400";
-
-                    remainingText =
-                      `${remainingDays} ${
-                        remainingDays ===
-                        1
-                          ? "DAY"
-                          : "DAYS"
-                      }`;
-
-                    if (
-                      remainingDays <= 3
-                    ) {
-                      remainingClass =
-                        "text-red-400 font-bold";
-                    }
-
-                    else if (
-                      remainingDays <= 7
-                    ) {
-                      remainingClass =
-                        "text-yellow-400 font-bold";
-                    }
                   }
                 }
 
                 return (
 
                   <tr
-                    key={order.id}
+                    key={order.firebaseId}
                     className="border-t border-zinc-800"
                   >
 
-                    <td className="p-4 font-bold text-white">
-                      #
-                      {
-                        order.orderNumber
-                      }
+                    <td className="p-4 font-bold">
+                      #{index + 1}
                     </td>
 
                     <td className="p-4">
-                      {
-                        order.customerName
-                      }
+                      {order.customerName}
                     </td>
 
                     <td className="p-4">
@@ -266,9 +213,7 @@ export default function Orders() {
                     </td>
 
                     <td className="p-4">
-                      {
-                        order.paymentMethod
-                      }
+                      {order.paymentMethod}
                     </td>
 
                     <td className="p-4">
@@ -278,9 +223,7 @@ export default function Orders() {
                     <td
                       className={`p-4 ${remainingClass}`}
                     >
-                      {
-                        remainingText
-                      }
+                      {remainingText}
                     </td>
 
                     <td
@@ -297,10 +240,10 @@ export default function Orders() {
                         <button
                           onClick={() =>
                             cancelOrder(
-                              order.id
+                              order.firebaseId
                             )
                           }
-                          className="bg-red-600 hover:bg-red-700 px-4 py-2 rounded-xl"
+                          className="bg-red-600 px-4 py-2 rounded-xl"
                         >
                           إلغاء
                         </button>

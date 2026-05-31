@@ -2,89 +2,148 @@ import { ArrowRight } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 
+import {
+  collection,
+  getDocs,
+  addDoc,
+} from "firebase/firestore";
+
+import { db } from "../firebase";
+
 export default function AddOrder() {
   const navigate = useNavigate();
 
-  const [products, setProducts] = useState<any[]>([]);
+  const [products, setProducts] =
+    useState<any[]>([]);
 
-  const [formData, setFormData] = useState({
-    customerName: "",
-    phone: "",
-    email: "",
-    product: "",
-    paymentMethod: "كاش",
-    notes: "",
-  });
+  const [formData, setFormData] =
+    useState({
+      customerName: "",
+      phone: "",
+      email: "",
+      product: "",
+      paymentMethod: "كاش",
+      notes: "",
+    });
 
   useEffect(() => {
-    const savedProducts = JSON.parse(
-      localStorage.getItem("products") || "[]"
-    );
-
-    setProducts(savedProducts);
+    loadProducts();
   }, []);
 
-  const saveOrder = () => {
-    if (!formData.customerName || !formData.product) {
-      alert("يرجى إدخال اسم العميل واختيار المنتج");
+  const loadProducts = async () => {
+    const querySnapshot =
+      await getDocs(
+        collection(db, "products")
+      );
+
+    const productsData =
+      querySnapshot.docs.map(
+        (doc) => ({
+          firebaseId: doc.id,
+          ...doc.data(),
+        })
+      );
+
+    setProducts(productsData);
+  };
+
+  const saveOrder = async () => {
+    if (
+      !formData.customerName ||
+      !formData.product
+    ) {
+      alert(
+        "يرجى إدخال اسم العميل واختيار المنتج"
+      );
       return;
     }
 
-    const orders = JSON.parse(
-      localStorage.getItem("orders") || "[]"
-    );
+    const selectedProduct =
+      products.find(
+        (p) =>
+          p.name === formData.product
+      );
 
-    let orderCounter = Number(
-      localStorage.getItem("orderCounter") || "1"
-    );
+    const ordersSnapshot =
+      await getDocs(
+        collection(db, "orders")
+      );
 
-    const selectedProduct = products.find(
-      (p) => p.name === formData.product
-    );
+    const orderCounter =
+      ordersSnapshot.size + 1;
 
     const order = {
       id: Date.now(),
 
-      orderNumber: orderCounter,
+      orderNumber:
+        orderCounter,
 
-      customerName: formData.customerName,
+      customerName:
+        formData.customerName,
 
-      phone: formData.phone,
+      phone:
+        formData.phone,
 
-      email: formData.email,
+      email:
+        formData.email,
 
-      product: formData.product,
+      product:
+        formData.product,
 
-      paymentMethod: formData.paymentMethod,
+      paymentMethod:
+        formData.paymentMethod,
 
-      price: Number(selectedProduct?.sellPrice || 0),
+      price: Number(
+        selectedProduct?.sellPrice ||
+          0
+      ),
 
-      profit: Number(selectedProduct?.profit || 0),
+      profit: Number(
+        selectedProduct?.profit ||
+          0
+      ),
 
-      status: "قيد التنفيذ",
+      status:
+        "قيد التنفيذ",
 
-      duration: selectedProduct?.permanent
-        ? "دائمة"
-        : selectedProduct?.duration || 0,
+      duration:
+        selectedProduct?.permanent
+          ? "دائمة"
+          : selectedProduct?.duration ||
+            0,
 
-      createdAt: new Date().toISOString(),
+      createdAt:
+        new Date().toISOString(),
 
-      notes: formData.notes,
+      notes:
+        formData.notes,
     };
 
-    orders.push(order);
+    try {
 
-    localStorage.setItem(
-      "orders",
-      JSON.stringify(orders)
-    );
+      await addDoc(
+        collection(
+          db,
+          "orders"
+        ),
+        order
+      );
 
-    localStorage.setItem(
-      "orderCounter",
-      String(orderCounter + 1)
-    );
+      alert(
+        "تم إضافة الطلب بنجاح"
+      );
 
-    navigate("/orders");
+      navigate("/orders");
+
+    } catch (error) {
+
+      console.error(error);
+
+      alert(
+        "حدث خطأ أثناء حفظ الطلب"
+      );
+
+    }
   };
 
   return (
@@ -109,46 +168,54 @@ export default function AddOrder() {
           <input
             placeholder="اسم العميل *"
             className="bg-black border border-zinc-800 rounded-2xl p-4"
-            value={formData.customerName}
+            value={
+              formData.customerName
+            }
             onChange={(e) =>
               setFormData({
                 ...formData,
-                customerName: e.target.value,
+                customerName:
+                  e.target.value,
               })
             }
           />
 
           <input
-            placeholder="رقم الهاتف (اختياري)"
+            placeholder="رقم الهاتف"
             className="bg-black border border-zinc-800 rounded-2xl p-4"
             value={formData.phone}
             onChange={(e) =>
               setFormData({
                 ...formData,
-                phone: e.target.value,
+                phone:
+                  e.target.value,
               })
             }
           />
 
           <input
-            placeholder="البريد الإلكتروني (اختياري)"
+            placeholder="البريد الإلكتروني"
             className="bg-black border border-zinc-800 rounded-2xl p-4"
             value={formData.email}
             onChange={(e) =>
               setFormData({
                 ...formData,
-                email: e.target.value,
+                email:
+                  e.target.value,
               })
             }
           />
 
           <select
             className="bg-black border border-zinc-800 rounded-2xl p-4"
-            value={formData.product}
+            value={
+              formData.product
+            }
             onChange={(e) =>
               setFormData({
                 ...formData,
-                product: e.target.value,
+                product:
+                  e.target.value,
               })
             }
           >
@@ -156,40 +223,59 @@ export default function AddOrder() {
               اختر المنتج
             </option>
 
-            {products.map((product) => (
-              <option
-                key={product.id}
-                value={product.name}
-              >
-                {product.name}
-              </option>
-            ))}
+            {products.map(
+              (product) => (
+                <option
+                  key={
+                    product.id
+                  }
+                  value={
+                    product.name
+                  }
+                >
+                  {product.name}
+                </option>
+              )
+            )}
+
           </select>
 
           <select
             className="bg-black border border-zinc-800 rounded-2xl p-4"
-            value={formData.paymentMethod}
+            value={
+              formData.paymentMethod
+            }
             onChange={(e) =>
               setFormData({
                 ...formData,
-                paymentMethod: e.target.value,
+                paymentMethod:
+                  e.target.value,
               })
             }
           >
-            <option>كاش</option>
-            <option>تحويل مصرفي</option>
-            <option>رصيد</option>
+            <option>
+              كاش
+            </option>
+            <option>
+              تحويل مصرفي
+            </option>
+            <option>
+              رصيد
+            </option>
           </select>
 
           <textarea
             rows={5}
             placeholder="ملاحظات"
             className="bg-black border border-zinc-800 rounded-2xl p-4 md:col-span-2"
-            value={formData.notes}
+            value={
+              formData.notes
+            }
             onChange={(e) =>
               setFormData({
                 ...formData,
-                notes: e.target.value,
+                notes:
+                  e.target.value,
               })
             }
           />

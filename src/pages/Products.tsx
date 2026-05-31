@@ -2,35 +2,73 @@ import { useEffect, useState } from "react";
 import { Plus, Trash2, Pencil } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
+import {
+  collection,
+  getDocs,
+  deleteDoc,
+  doc,
+} from "firebase/firestore";
+
+import { db } from "../firebase";
+
 export default function Products() {
   const navigate = useNavigate();
+
   const [products, setProducts] = useState<any[]>([]);
 
-  useEffect(() => {
-    const savedProducts = JSON.parse(
-      localStorage.getItem("products") || "[]"
+  const loadProducts = async () => {
+    const querySnapshot = await getDocs(
+      collection(db, "products")
     );
 
-    setProducts(savedProducts);
+    const productsData = querySnapshot.docs.map(
+      (docItem) => ({
+        firebaseId: docItem.id,
+        ...docItem.data(),
+      })
+    );
+
+    setProducts(productsData);
+  };
+
+  useEffect(() => {
+    loadProducts();
   }, []);
 
-  const deleteProduct = (id: number) => {
+  const deleteProduct = async (
+    firebaseId: string
+  ) => {
+
     const confirmDelete = window.confirm(
       "هل أنت متأكد من حذف المنتج؟"
     );
 
     if (!confirmDelete) return;
 
-    const updatedProducts = products.filter(
-      (product) => product.id !== id
-    );
+    try {
 
-    setProducts(updatedProducts);
+      await deleteDoc(
+        doc(db, "products", firebaseId)
+      );
 
-    localStorage.setItem(
-      "products",
-      JSON.stringify(updatedProducts)
-    );
+      setProducts(
+        products.filter(
+          (product) =>
+            product.firebaseId !==
+            firebaseId
+        )
+      );
+
+    } catch (error) {
+
+      console.error(error);
+
+      alert(
+        "حدث خطأ أثناء حذف المنتج"
+      );
+
+    }
+
   };
 
   return (
@@ -43,7 +81,9 @@ export default function Products() {
         </h1>
 
         <button
-          onClick={() => navigate("/products/add")}
+          onClick={() =>
+            navigate("/products/add")
+          }
           className="bg-white text-black px-5 py-3 rounded-2xl flex items-center gap-2 font-bold"
         >
           <Plus size={20} />
@@ -57,43 +97,81 @@ export default function Products() {
         <table className="w-full text-center">
 
           <thead className="bg-zinc-800">
+
             <tr>
-              <th className="p-4">الصورة</th>
-              <th className="p-4">المنتج</th>
-              <th className="p-4">الشراء</th>
-              <th className="p-4">البيع</th>
-              <th className="p-4">الربح</th>
-              <th className="p-4">المدة</th>
-              <th className="p-4">الحالة</th>
-              <th className="p-4">الإجراءات</th>
+
+              <th className="p-4">
+                الصورة
+              </th>
+
+              <th className="p-4">
+                المنتج
+              </th>
+
+              <th className="p-4">
+                الشراء
+              </th>
+
+              <th className="p-4">
+                البيع
+              </th>
+
+              <th className="p-4">
+                الربح
+              </th>
+
+              <th className="p-4">
+                المدة
+              </th>
+
+              <th className="p-4">
+                الحالة
+              </th>
+
+              <th className="p-4">
+                الإجراءات
+              </th>
+
             </tr>
+
           </thead>
 
           <tbody>
 
             {products.length === 0 ? (
+
               <tr>
+
                 <td
                   colSpan={8}
                   className="p-10 text-zinc-500"
                 >
                   لا توجد منتجات
                 </td>
+
               </tr>
+
             ) : (
+
               products.map((product) => (
+
                 <tr
-                  key={product.id}
+                  key={product.firebaseId}
                   className="border-t border-zinc-800"
                 >
+
                   <td className="p-4">
+
                     {product.image && (
+
                       <img
                         src={product.image}
                         alt=""
                         className="w-14 h-14 rounded-xl object-cover mx-auto"
                       />
+
                     )}
+
                   </td>
 
                   <td className="p-4">
@@ -113,9 +191,11 @@ export default function Products() {
                   </td>
 
                   <td className="p-4">
+
                     {product.permanent
                       ? "دائمة"
                       : `${product.duration} يوم`}
+
                   </td>
 
                   <td className="p-4">
@@ -124,31 +204,38 @@ export default function Products() {
 
                   <td className="p-4">
 
-  <div className="flex justify-center gap-4">
+                    <div className="flex justify-center gap-4">
 
-    <button
-      onClick={() =>
-        navigate(`/products/edit/${product.id}`)
-      }
-      className="text-blue-400"
-    >
-      <Pencil size={18} />
-    </button>
+                      <button
+                        onClick={() =>
+                          navigate(
+                            `/products/edit/${product.id}`
+                          )
+                        }
+                        className="text-blue-400"
+                      >
+                        <Pencil size={18} />
+                      </button>
 
-    <button
-      onClick={() =>
-        deleteProduct(product.id)
-      }
-      className="text-red-400"
-    >
-      <Trash2 size={18} />
-    </button>
+                      <button
+                        onClick={() =>
+                          deleteProduct(
+                            product.firebaseId
+                          )
+                        }
+                        className="text-red-400"
+                      >
+                        <Trash2 size={18} />
+                      </button>
 
-  </div>
+                    </div>
 
-</td>
+                  </td>
+
                 </tr>
+
               ))
+
             )}
 
           </tbody>

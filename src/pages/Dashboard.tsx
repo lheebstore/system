@@ -1,5 +1,12 @@
 import { useEffect, useState } from "react";
 
+import { db } from "../firebase";
+
+import {
+  collection,
+  getDocs,
+} from "firebase/firestore";
+
 export default function Dashboard() {
   const [orders, setOrders] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
@@ -8,16 +15,39 @@ export default function Dashboard() {
 
   useEffect(() => {
 
-    const savedOrders = JSON.parse(
-      localStorage.getItem("orders") || "[]"
-    );
+    const loadData = async () => {
 
-    const savedProducts = JSON.parse(
-      localStorage.getItem("products") || "[]"
-    );
+      const ordersSnapshot =
+        await getDocs(
+          collection(db, "orders")
+        );
 
-    setOrders(savedOrders);
-    setProducts(savedProducts);
+      const productsSnapshot =
+        await getDocs(
+          collection(db, "products")
+        );
+
+      const ordersData =
+        ordersSnapshot.docs.map(
+          (doc) => ({
+            firebaseId: doc.id,
+            ...doc.data(),
+          })
+        );
+
+      const productsData =
+        productsSnapshot.docs.map(
+          (doc) => ({
+            firebaseId: doc.id,
+            ...doc.data(),
+          })
+        );
+
+      setOrders(ordersData);
+      setProducts(productsData);
+    };
+
+    loadData();
 
     if (
       localStorage.getItem(
@@ -196,7 +226,7 @@ export default function Dashboard() {
             latestOrders.map((order) => (
 
               <div
-                key={order.id}
+                key={order.firebaseId}
                 className="flex justify-between text-zinc-300"
               >
 
@@ -258,7 +288,7 @@ export default function Dashboard() {
               return (
 
                 <div
-                  key={order.id}
+                  key={order.firebaseId}
                   className="flex justify-between items-center bg-black border border-zinc-800 rounded-2xl p-4"
                 >
 
@@ -281,10 +311,7 @@ export default function Dashboard() {
                         : "text-yellow-400 font-bold"
                     }
                   >
-                    {remainingDays}{" "}
-                    {remainingDays === 1
-                      ? "DAY"
-                      : "DAYS"}
+                    {remainingDays} DAYS
                   </span>
 
                 </div>

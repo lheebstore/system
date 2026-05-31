@@ -2,6 +2,9 @@ import { ArrowRight } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useState } from "react";
 
+import { collection, addDoc } from "firebase/firestore";
+import { db } from "../firebase";
+
 export default function AddProduct() {
   const navigate = useNavigate();
 
@@ -16,7 +19,7 @@ export default function AddProduct() {
     image: "",
   });
 
-  const saveProduct = () => {
+  const saveProduct = async () => {
     if (
       !formData.name ||
       !formData.buyPrice ||
@@ -32,20 +35,25 @@ export default function AddProduct() {
       profit:
         Number(formData.sellPrice) -
         Number(formData.buyPrice),
+      createdAt: new Date().toISOString(),
     };
 
-    const savedProducts = JSON.parse(
-      localStorage.getItem("products") || "[]"
-    );
+    try {
+      await addDoc(
+        collection(db, "products"),
+        product
+      );
 
-    savedProducts.push(product);
+      alert("تم إضافة المنتج بنجاح");
 
-    localStorage.setItem(
-      "products",
-      JSON.stringify(savedProducts)
-    );
+      navigate("/products");
+    } catch (error) {
+      console.error(error);
 
-    navigate("/products");
+      alert(
+        "حدث خطأ أثناء حفظ المنتج"
+      );
+    }
   };
 
   return (
@@ -80,33 +88,37 @@ export default function AddProduct() {
           />
 
           <input
-         type="file"
-         accept="image/*"
-         className="bg-black border border-zinc-800 rounded-2xl p-4"
-         onChange={(e) => {
-         const file = e.target.files?.[0];
+            type="file"
+            accept="image/*"
+            className="bg-black border border-zinc-800 rounded-2xl p-4"
+            onChange={(e) => {
+              const file =
+                e.target.files?.[0];
 
-         if (!file) return;
+              if (!file) return;
 
-         const reader = new FileReader();
+              const reader =
+                new FileReader();
 
-         reader.onloadend = () => {
-         setFormData({
-         ...formData,
-          image: reader.result as string,
-      });
-    };
+              reader.onloadend = () => {
+                setFormData({
+                  ...formData,
+                  image:
+                    reader.result as string,
+                });
+              };
 
-    reader.readAsDataURL(file);
-  }}
-/>
-{formData.image && (
-  <img
-    src={formData.image}
-    alt="preview"
-    className="w-32 h-32 rounded-2xl object-cover border border-zinc-800"
-  />
-)}
+              reader.readAsDataURL(file);
+            }}
+          />
+
+          {formData.image && (
+            <img
+              src={formData.image}
+              alt="preview"
+              className="w-32 h-32 rounded-2xl object-cover border border-zinc-800"
+            />
+          )}
 
           <input
             type="number"
@@ -157,7 +169,8 @@ export default function AddProduct() {
               onChange={(e) =>
                 setFormData({
                   ...formData,
-                  permanent: e.target.checked,
+                  permanent:
+                    e.target.checked,
                 })
               }
             />

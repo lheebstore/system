@@ -2,60 +2,98 @@ import { ArrowRight } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useEffect, useState } from "react";
 
+import {
+  collection,
+  getDocs,
+  updateDoc,
+  doc,
+} from "firebase/firestore";
+
+import { db } from "../firebase";
+
 export default function EditProduct() {
   const navigate = useNavigate();
   const { id } = useParams();
 
-  const [formData, setFormData] = useState({
-    name: "",
-    buyPrice: "",
-    sellPrice: "",
-    duration: "",
-    permanent: false,
-    status: "متوفر",
-    notes: "",
-    image: "",
-  });
+  const [firebaseId, setFirebaseId] =
+    useState("");
 
-  useEffect(() => {
-    const products = JSON.parse(
-      localStorage.getItem("products") || "[]"
-    );
-
-    const product = products.find(
-      (p: any) => String(p.id) === String(id)
-    );
-
-    if (product) {
-      setFormData(product);
-    }
-  }, [id]);
-
-  const saveChanges = () => {
-    const products = JSON.parse(
-      localStorage.getItem("products") || "[]"
-    );
-
-    const updatedProducts = products.map((product: any) => {
-      if (String(product.id) === String(id)) {
-        return {
-          ...formData,
-          id: product.id,
-          profit:
-            Number(formData.sellPrice) -
-            Number(formData.buyPrice),
-        };
-      }
-
-      return product;
+  const [formData, setFormData] =
+    useState({
+      name: "",
+      buyPrice: "",
+      sellPrice: "",
+      duration: "",
+      permanent: false,
+      status: "متوفر",
+      notes: "",
+      image: "",
     });
 
-    localStorage.setItem(
-      "products",
-      JSON.stringify(updatedProducts)
-    );
+  useEffect(() => {
+    loadProduct();
+  }, [id]);
 
-    navigate("/products");
+  const loadProduct = async () => {
+    const querySnapshot =
+      await getDocs(
+        collection(db, "products")
+      );
+
+    const product =
+      querySnapshot.docs.find(
+        (docItem) =>
+          String(
+            docItem.data().id
+          ) === String(id)
+      );
+
+    if (product) {
+      setFirebaseId(product.id);
+
+      setFormData(
+        product.data() as any
+      );
+    }
+  };
+
+  const saveChanges = async () => {
+    try {
+
+      await updateDoc(
+        doc(
+          db,
+          "products",
+          firebaseId
+        ),
+        {
+          ...formData,
+
+          profit:
+            Number(
+              formData.sellPrice
+            ) -
+            Number(
+              formData.buyPrice
+            ),
+        }
+      );
+
+      alert(
+        "تم حفظ التعديلات بنجاح"
+      );
+
+      navigate("/products");
+
+    } catch (error) {
+
+      console.error(error);
+
+      alert(
+        "حدث خطأ أثناء الحفظ"
+      );
+
+    }
   };
 
   return (
@@ -132,20 +170,27 @@ export default function EditProduct() {
           </select>
 
           <div className="flex items-center gap-3">
+
             <input
               type="checkbox"
               checked={formData.permanent}
               onChange={(e) =>
                 setFormData({
                   ...formData,
-                  permanent: e.target.checked,
+                  permanent:
+                    e.target.checked,
                 })
               }
             />
-            <span>خدمة دائمة</span>
+
+            <span>
+              خدمة دائمة
+            </span>
+
           </div>
 
           {!formData.permanent && (
+
             <input
               type="number"
               placeholder="مدة الخدمة بالأيام"
@@ -154,10 +199,12 @@ export default function EditProduct() {
               onChange={(e) =>
                 setFormData({
                   ...formData,
-                  duration: e.target.value,
+                  duration:
+                    e.target.value,
                 })
               }
             />
+
           )}
 
           <textarea
@@ -168,7 +215,8 @@ export default function EditProduct() {
             onChange={(e) =>
               setFormData({
                 ...formData,
-                notes: e.target.value,
+                notes:
+                  e.target.value,
               })
             }
           />
